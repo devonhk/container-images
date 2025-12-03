@@ -1,0 +1,50 @@
+name: Build and Publish Images
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  NAMESPACE: ${{ vars.DOCKERHUB_USERNAME || 'devonhk' }}
+  # Default tag tracks the ref name (e.g., main, v1.2.3). Override as needed.
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.NAMESPACE }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and (optionally) push
+        uses: docker/bake-action@5be5f02ff8819ecd3092ea6b2e6261c31774f2b4 # v6.10.0
+        with:
+          files: ./docker-bake.hcl
+          targets: default
+          push: ${{ github.event_name != 'pull_request' }}
+          provenance: false
+          set: |
+            *.cache-from=type=gha,scope=${{ github.ref_name }}
+            *.cache-to=type=gha,mode=max,scope=${{ github.ref_name }}

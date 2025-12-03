@@ -1,0 +1,115 @@
+name: Bump Actions Dependencies
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-actions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Update pinned action SHAs (30d cooldown)
+        id: update
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = '.github/workflows/build.yml';
+            const cooldownDays = 30;
+            const cutoff = Date.now() - cooldownDays * 24 * 60 * 60 * 1000;
+
+            const deps = [
+              { name: 'actions/checkout', repo: 'actions/checkout' },
+              { name: 'docker/setup-buildx-action', repo: 'docker/setup-buildx-action' },
+              { name: 'docker/login-action', repo: 'docker/login-action' },
+              { name: 'docker/bake-action', repo: 'docker/bake-action' },
+            ];
+
+            const compareSemver = (a, b) => {
+              const pa = a.replace(/^v/, '').split('.').map(Number);
+              const pb = b.replace(/^v/, '').split('.').map(Number);
+              for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+                const da = pa[i] || 0;
+                const db = pb[i] || 0;
+                if (da !== db) return da - db;
+              }
+              return 0;
+            };
+
+            const text = fs.readFileSync(path, 'utf8');
+            let updatedText = text;
+            const updates = [];
+
+            for (const dep of deps) {
+              // Match pinned action with optional version comment.
+              const regex = new RegExp(`uses:\\s*${dep.name.replace('/', '\\/')}@([A-Za-z0-9]+)(?:\\s+#\\s*v?([0-9]+\\.[0-9]+\\.[0-9]+))?`);
+              const match = updatedText.match(regex);
+              if (!match) {
+                core.warning(`Could not find pinned entry for ${dep.name}`);
+                continue;
+              }
+              const currentSha = match[1];
+              let currentVersion = match[2] || null;
+
+              const [owner, repo] = dep.repo.split('/');
+              const { data: tags } = await github.repos.listTags({ owner, repo, per_page: 100 });
+              const semverTags = tags
+                .map(t => ({ tag: t.name, sha: t.commit.sha }))
+                .filter(t => /^v\\d+\\.\\d+\\.\\d+$/.test(t.tag));
+              const candidates = [...semverTags].sort((a, b) => compareSemver(b.tag, a.tag));
+
+              if (!currentVersion) {
+                const matchBySha = semverTags.find(t => t.sha === currentSha);
+                currentVersion = matchBySha ? matchBySha.tag.replace(/^v/, '') : '0.0.0';
+              }
+
+              let chosen = null;
+              for (const c of candidates) {
+                if (compareSemver(c.tag.replace(/^v/, ''), currentVersion) <= 0) break;
+                const commit = await github.git.getCommit({ owner, repo, commit_sha: c.sha });
+                const commitDate = new Date(commit.data.committer.date).getTime();
+                if (commitDate <= cutoff) {
+                  chosen = { version: c.tag.replace(/^v/, ''), sha: c.sha, date: commit.data.committer.date };
+                  break;
+                }
+              }
+
+              if (!chosen) continue;
+
+              const replacement = `uses: ${dep.name}@${chosen.sha} # v${chosen.version}`;
+              updatedText = updatedText.replace(regex, replacement);
+              updates.push({ name: dep.name, from: currentVersion, to: chosen.version, sha: chosen.sha, date: chosen.date });
+            }
+
+            if (updates.length === 0) {
+              core.info('No eligible updates (respecting cooldown).');
+              core.setOutput('changed', 'false');
+              return;
+            }
+
+            fs.writeFileSync(path, updatedText);
+            core.setOutput('changed', 'true');
+            core.setOutput('summary', updates.map(u => `${u.name}: v${u.from} -> v${u.to} (commit ${u.sha}, date ${u.date})`).join('\n'));
+
+      - name: Create PR
+        if: steps.update.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@84ae59a2cdc2258d6fa0732dd66352dddae2a412 # v7.0.9
+        with:
+          commit-message: "chore: bump GitHub Actions"
+          title: "chore: bump GitHub Actions"
+          body: |
+            Automated update of pinned GitHub Actions (30-day cooldown applied).
+
+            ${{ steps.update.outputs.summary }}
+          branch: chore/bump-actions
+          delete-branch: true
+          labels: dependencies
