@@ -11,11 +11,6 @@ variable "TAG" {
   default = "latest"
 }
 
-variable "DELUGE_VERSION" {
-  # See https://github.com/deluge-torrent/deluge/releases for versions
-  default = "2.2.0"
-}
-
 variable "SOURCE_REPO" {
   default = "https://github.com/devonhk/container-images"
 }
@@ -35,6 +30,13 @@ group "default" {
   ]
 }
 
+// Local builds that load images into the Docker engine (no extra flags required).
+group "local" {
+  targets = [
+    "deluge-load",
+  ]
+}
+
 target "_base" {
   platforms = [amd64]
   pull = true
@@ -49,8 +51,10 @@ target "deluge" {
   inherits = ["_base"]
   context = "images/deluge"
   dockerfile = "Dockerfile"
-  args = {
-    DELUGE_VERSION = DELUGE_VERSION
-  }
   tags = image_ref("deluge")
+}
+
+target "deluge-load" {
+  inherits = ["deluge"]
+  output = ["type=docker"]
 }
