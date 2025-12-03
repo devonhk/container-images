@@ -5,7 +5,8 @@ ARG DELUGE_VERSION
 ENV DELUGE_CONFIG_PATH=/var/lib/deluge \
     DELUGE_LOGLEVEL=info \
     PATH=/home/deluge/.local/bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-    PIP_BREAK_SYSTEM_PACKAGES=1
+    PIP_BREAK_SYSTEM_PACKAGES=1 \
+    PIP_NO_BINARY=:all:
 
 RUN set -eux; \
     apt-get update; \
@@ -16,9 +17,19 @@ RUN set -eux; \
       python3-gi \
       python3-libtorrent \
       python3-dev \
-      build-essential; \
+      build-essential \
+      rustc \
+      cargo \
+      libssl-dev \
+      libffi-dev; \
     pip3 install --no-cache-dir "deluge==${DELUGE_VERSION}"; \
-    apt-get purge -y --auto-remove build-essential python3-dev; \
+    apt-get purge -y --auto-remove \
+      build-essential \
+      python3-dev \
+      rustc \
+      cargo \
+      libssl-dev \
+      libffi-dev; \
     rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
