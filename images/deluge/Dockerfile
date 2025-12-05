@@ -1,19 +1,16 @@
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
-RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt/lists \
-    set -eux; \
+RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       ca-certificates \
       python3 \
-      python3-gi \
-      python3-libtorrent \
       deluged \
       deluge-web \
-      deluge-console; \
+      p7zip-full; \
     rm -rf /var/lib/apt/lists/*
 
-RUN useradd --system --shell /usr/sbin/nologin deluge
+RUN useradd  --uid 911 --system --shell /usr/sbin/nologin deluge
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
