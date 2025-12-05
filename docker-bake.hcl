@@ -27,6 +27,7 @@ amd64 = "linux/amd64"
 group "default" {
   targets = [
     "deluge",
+    "nginx-vlc-stream",
   ]
 }
 
@@ -34,6 +35,7 @@ group "default" {
 group "local" {
   targets = [
     "deluge-load",
+    "nginx-vlc-stream-load",
   ]
 }
 
@@ -56,5 +58,17 @@ target "deluge" {
 
 target "deluge-load" {
   inherits = ["deluge"]
+  output = ["type=docker"]
+}
+
+target "nginx-vlc-stream" {
+  inherits = ["_base"]
+  context = "nginx-vlc-stream"
+  dockerfile = "Dockerfile"
+  tags = image_ref("nginx-vlc-stream")
+}
+
+target "nginx-vlc-stream-load" {
+  inherits = ["nginx-vlc-stream"]
   output = ["type=docker"]
 }
