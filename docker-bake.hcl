@@ -28,6 +28,7 @@ group "default" {
   targets = [
     "deluge",
     "nginx-vlc-stream",
+    "vsftpd",
   ]
 }
 
@@ -36,6 +37,7 @@ group "local" {
   targets = [
     "deluge-load",
     "nginx-vlc-stream-load",
+    "vsftpd-load",
   ]
 }
 
@@ -63,12 +65,24 @@ target "deluge-load" {
 
 target "nginx-vlc-stream" {
   inherits = ["_base"]
-  context = "nginx-vlc-stream"
+  context = "images/nginx-vlc-stream"
   dockerfile = "Dockerfile"
   tags = image_ref("nginx-vlc-stream")
 }
 
 target "nginx-vlc-stream-load" {
   inherits = ["nginx-vlc-stream"]
+  output = ["type=docker"]
+}
+
+target "vsftpd" {
+  inherits = ["_base"]
+  context = "images/vsftpd"
+  dockerfile = "Dockerfile"
+  tags = image_ref("vsftpd")
+}
+
+target "vsftpd-load" {
+  inherits = ["vsftpd"]
   output = ["type=docker"]
 }
