@@ -25,11 +25,9 @@ RUN mkdir -p /var/run/vsftpd/empty \
 
 # Create media user with UID 911 (matching other media apps)
 RUN useradd -u 911 -m -s /bin/bash media \
-    && mkdir -p /home/media/ftp/upload \
+    && mkdir -p /home/media/ftp \
     && chown media:media /home/media/ftp \
-    && chown media:media /home/media/ftp/upload \
-    && chmod 755 /home/media/ftp \
-    && chmod 775 /home/media/ftp/upload
+    && chmod 755 /home/media/ftp
 
 # Copy configuration files
 COPY vsftpd.conf /etc/vsftpd/vsftpd.conf
@@ -41,9 +39,5 @@ RUN chmod +x /entrypoint.sh
 # 20 - FTP data (active mode)
 # 21100-21110 - Passive mode port range
 EXPOSE 21 20 21100-21110
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD pidof vsftpd || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

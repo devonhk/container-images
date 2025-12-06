@@ -9,10 +9,10 @@ Monorepo for container images built with Docker Buildx and `docker buildx bake`.
 ## Build locally
 ```bash
 # Build everything (Docker Hub user set to devonhk by default)
-TAG=dev docker buildx bake
+make build
 
 # Or just one target
-TAG=dev docker buildx bake deluge
+make build deluge
 ```
 
 Useful flags:
@@ -35,20 +35,6 @@ Useful flags:
   - **Direct streaming**: Point VLC to `http://<host>:8080/path/to/video.mp4` for direct playback.
   - **Range requests**: Supports seeking/scrubbing through videos.
   - **Auto-discovery**: Recursively serves all files under `/media`.
-- Usage examples:
-  ```bash
-  # Docker
-  docker run -d -p 8080:8080 -v /path/to/videos:/media devonhk/nginx-vlc-stream:latest
-
-  # VLC - browse in browser then copy URL
-  # Or directly: vlc http://your-server:8080/Movies/film.mp4
-
-  # Kubernetes with Tailscale (expose via LoadBalancer or Ingress)
-  kubectl create deployment nginx-vlc --image=devonhk/nginx-vlc-stream:latest
-  kubectl expose deployment nginx-vlc --port=8080 --type=LoadBalancer
-  ```
-- Health check available at `/health`.
-- Based on `nginx:alpine`.
 
 ## CI / Docker Hub
 - Workflow: `.github/workflows/build.yml` builds on push, PR, schedule, and manual dispatch using Buildx + Bake.
